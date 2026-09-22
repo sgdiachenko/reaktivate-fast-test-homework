@@ -2,13 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom";
 
 import "./styles.css";
+import AppView from "./App/App.view";
 import booksRepository from "./Books/Books.repository";
 import BooksController from "./Books/Books.controller";
-import BooksView from "./Books/Books.view";
 
 const booksController = new BooksController(booksRepository);
 
-booksController.loadBooks();
+booksController.initialize();
 
 const rootElement = document.getElementById("root");
-ReactDOM.render(<BooksView controller={booksController} />, rootElement);
+ReactDOM.render(<AppView booksController={booksController} />, rootElement);
