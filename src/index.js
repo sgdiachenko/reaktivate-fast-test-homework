@@ -1,40 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import ReactDOM from "react-dom";
-// import { observer } from "mobx-react";
 
 import "./styles.css";
 import booksRepository from "./Books/Books.repository";
+import BooksController from "./Books/Books.controller";
+import BooksView from "./Books/Books.view";
 
-function App() {
-  const [list, setList] = useState([]);
+const booksController = new BooksController(booksRepository);
 
-  React.useEffect(() => {
-    async function load() {
-      const books = await booksRepository.getBooks();
-      setList(books);
-    }
-    load();
-  }, []);
-
-  return (
-    <div>
-      {list.map((book, i) => (
-        <div key={i}>
-          {book.author}: {book.name}
-        </div>
-      ))}
-      <button
-        onClick={() => {
-          alert("TBD");
-        }}
-      >
-        Add
-      </button>
-    </div>
-  );
-}
-
-const ObservedApp = App;
+booksController.loadBooks();
 
 const rootElement = document.getElementById("root");
-ReactDOM.render(<ObservedApp />, rootElement);
+ReactDOM.render(<BooksView controller={booksController} />, rootElement);

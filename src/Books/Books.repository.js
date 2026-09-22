@@ -11,7 +11,7 @@ class BooksRepository {
   };
 
   addBook = async ({ name, author }) => {
-    const bookAddDto = await this.httpGateway.post("/books", { name, author });
+    const bookAddDto = await this.httpGateway.post("/", { name, author });
     return bookAddDto && bookAddDto.status === "ok" ? true : false;
   };
 }
