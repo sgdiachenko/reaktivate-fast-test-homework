@@ -15,19 +15,27 @@ export default class BooksController {
   books = [];
   privateBooksCount = 0;
   selectedMode = BOOKS_MODE.ALL;
+  // See README.md: Design decisions > Stale response protection.
+  listRequestId = 0;
+  countRequestId = 0;
 
   constructor(booksRepository) {
     this.booksRepository = booksRepository;
     makeAutoObservable(this, {
-      booksRepository: false
+      booksRepository: false,
+      listRequestId: false,
+      countRequestId: false
     });
   }
 
   loadBooks = async () => {
+    const requestId = ++this.listRequestId;
     const books = await this.booksRepository.getBooks();
 
     runInAction(() => {
-      this.books = books;
+      if (requestId === this.listRequestId) {
+        this.books = books;
+      }
     });
   };
 
@@ -71,20 +79,29 @@ export default class BooksController {
   };
 
   loadPrivateBooks = async () => {
+    const listRequestId = ++this.listRequestId;
+    const countRequestId = ++this.countRequestId;
     const books = await this.booksRepository.getPrivateBooks();
 
     // The private response is used by both the list and the header counter.
     runInAction(() => {
-      this.books = books;
-      this.privateBooksCount = books.length;
+      if (listRequestId === this.listRequestId) {
+        this.books = books;
+      }
+      if (countRequestId === this.countRequestId) {
+        this.privateBooksCount = books.length;
+      }
     });
   };
 
   loadPrivateBooksCount = async () => {
+    const requestId = ++this.countRequestId;
     const books = await this.booksRepository.getPrivateBooks();
 
     runInAction(() => {
-      this.privateBooksCount = books.length;
+      if (requestId === this.countRequestId) {
+        this.privateBooksCount = books.length;
+      }
     });
   };
 

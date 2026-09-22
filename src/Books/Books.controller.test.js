@@ -1,6 +1,116 @@
 import BooksController from "./Books.controller";
 
+function deferred() {
+  let resolve;
+  const promise = new Promise(resolvePromise => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("BooksController", () => {
+  it("keeps Private books when an older All response arrives last", async () => {
+    const older = deferred();
+    const privateBooks = [{ name: "Private" }];
+    const controller = new BooksController({
+      getBooks: () => older.promise,
+      getPrivateBooks: async () => privateBooks
+    });
+
+    const pending = controller.loadBooks();
+    await controller.showPrivateBooks();
+    older.resolve([{ name: "Public" }]);
+    await pending;
+
+    expect(controller.books).toEqual(privateBooks);
+    expect(controller.isPrivateBooksSelected).toBe(true);
+  });
+
+  it("keeps All books when an older Private response arrives last", async () => {
+    const older = deferred();
+    const allBooks = [{ name: "Public" }, { name: "Private" }];
+    const controller = new BooksController({
+      getBooks: async () => allBooks,
+      getPrivateBooks: () => older.promise
+    });
+
+    const pending = controller.showPrivateBooks();
+    await controller.showAllBooks();
+    older.resolve([{ name: "Private" }]);
+    await pending;
+
+    expect(controller.books).toEqual(allBooks);
+    expect(controller.privateBooksCount).toBe(1);
+    expect(controller.isAllBooksSelected).toBe(true);
+  });
+
+  it("keeps the newest All response even when the mode is unchanged", async () => {
+    const older = deferred();
+    const newestBooks = [{ name: "New" }];
+    const controller = new BooksController({
+      getBooks: jest.fn().mockReturnValueOnce(older.promise)
+        .mockResolvedValueOnce(newestBooks)
+    });
+
+    const pending = controller.loadBooks();
+    await controller.loadBooks();
+    older.resolve([{ name: "Old" }]);
+    await pending;
+
+    expect(controller.books).toEqual(newestBooks);
+  });
+
+  it("keeps the refreshed counter after creation when an initial count arrives last", async () => {
+    const older = deferred();
+    const controller = new BooksController({
+      getBooks: async () => [],
+      addBook: async () => true,
+      getPrivateBooks: jest.fn().mockReturnValueOnce(older.promise)
+        .mockResolvedValueOnce([{ name: "New" }])
+    });
+
+    const pending = controller.initialize();
+    await controller.addBook();
+    older.resolve([]);
+    await pending;
+
+    expect(controller.privateBooksCount).toBe(1);
+  });
+
+  it("keeps a newer header count while accepting the current Private list", async () => {
+    const older = deferred();
+    const privateBooks = [{ name: "Private" }];
+    const controller = new BooksController({
+      getPrivateBooks: jest.fn().mockReturnValueOnce(older.promise)
+        .mockResolvedValueOnce([...privateBooks, { name: "New" }])
+    });
+
+    const pending = controller.showPrivateBooks();
+    await controller.loadPrivateBooksCount();
+    older.resolve(privateBooks);
+    await pending;
+
+    expect(controller.books).toEqual(privateBooks);
+    expect(controller.privateBooksCount).toBe(2);
+  });
+
+  it("ignores an older count response after loading the Private list", async () => {
+    const older = deferred();
+    const privateBooks = [{ name: "Private" }];
+    const controller = new BooksController({
+      getPrivateBooks: jest.fn().mockReturnValueOnce(older.promise)
+        .mockResolvedValueOnce(privateBooks)
+    });
+
+    const pending = controller.loadPrivateBooksCount();
+    await controller.showPrivateBooks();
+    older.resolve([]);
+    await pending;
+
+    expect(controller.books).toEqual(privateBooks);
+    expect(controller.privateBooksCount).toBe(1);
+  });
+
   it("loads books from the repository", async () => {
     const books = [
       { id: 1, name: "Clean Code", author: "Robert C. Martin" }

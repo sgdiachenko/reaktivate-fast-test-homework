@@ -27,6 +27,26 @@ controller to be tested without React, DOM rendering, or HTTP requests.
 
 ## Design decisions
 
+### Stale response protection
+
+Overlapping requests can finish out of order. For example, a slow All-books
+response may arrive after the user has switched to Private books. Applying it
+would display the wrong list for the selected mode.
+
+The controller uses two request counters: `listRequestId` for the visible list
+and `countRequestId` for the header count. Each request captures its counter
+value before awaiting the API and applies its result only if that value is
+still current. These bookkeeping fields are excluded from MobX observation.
+
+The counters are independent because a Private-books response can update both
+the list and the count. Switching to All makes its list result obsolete, but
+its count can still be useful if no newer count request has started. Conversely,
+a count-only refresh should not invalidate a pending list request.
+
+This protects state correctness; it does not cache data or cancel HTTP requests.
+Unit tests resolve requests out of order to verify switching, repeated loads,
+and counter refreshes after book creation.
+
 ### Caching
 
 A dedicated caching layer is intentionally not included. The application and
