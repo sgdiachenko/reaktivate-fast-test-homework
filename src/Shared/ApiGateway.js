@@ -3,6 +3,9 @@ import { API_BASE } from "./config";
 export default class ApiGateway {
   get = async (path) => {
     const response = await fetch(`${API_BASE}${path}`);
+    if (!response.ok) {
+      throw new Error(`Request failed: HTTP ${response.status}`);
+    }
     const dto = response.json();
     return dto;
   };
@@ -11,10 +14,12 @@ export default class ApiGateway {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
-        // 'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: JSON.stringify(payload)
     });
+    if (!response.ok) {
+      throw new Error(`Request failed: HTTP ${response.status}`);
+    }
     const dto = response.json();
     return dto;
   };

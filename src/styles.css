@@ -5,4 +5,22 @@
 
 body {
   font-family: arial;
+  margin: 0;
+}
+
+.app-header {
+  background: white;
+  border-bottom: 1px solid #ddd;
+  padding: 16px;
+  position: sticky;
+  top: 0;
+}
+
+.app-content {
+  padding: 16px;
+}
+
+button[aria-pressed="true"] {
+  font-weight: bold;
+  background: #ddd;
 }
