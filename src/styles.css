@@ -19,3 +19,8 @@ body {
 .app-content {
   padding: 16px;
 }
+
+button[aria-pressed="true"] {
+  font-weight: bold;
+  background: #ddd;
+}

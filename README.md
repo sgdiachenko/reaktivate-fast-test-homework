@@ -54,17 +54,49 @@ its data set are small, while cache invalidation after book creation would add
 complexity unrelated to the task. The controller keeps only the observable
 state required by the UI and reloads server data after a successful mutation.
 
+### Request failures and retries
+
+The gateway rejects unsuccessful HTTP responses before parsing JSON. The
+controller catches failures and logs diagnostics with `console.debug` (enable
+Verbose messages in browser DevTools to see them). No error messages are shown
+on screen. Stale failures are ignored using the request counters.
+
+Switching modes clears the previous list so All books cannot remain visible
+under Private after a failed request. The selected mode button stays disabled;
+switch away and back, or reload the page, to retry. The header displays `—`
+initially and after a failed count request; a successful empty response displays
+`0`. This display-ready field needs no additional computed getter.
+
+Add is disabled during creation and its refresh. A failed refresh after a
+successful POST is logged as a loading failure. Creation is never retried
+automatically: a lost response does not prove that the server did not create
+the book. Check the refreshed list before manually attempting creation again.
+
+### Possible improvements
+
+- Loading indicators to distinguish pending requests from an empty list.
+- User-visible error messages with explicit retry actions, so failures can be
+  understood and recovered from without opening the developer console.
+
+These UX enhancements are intentionally left out to keep the homework focused
+on separating testable logic from rendering.
+
 ## Requirements
 
-- Node.js 16 (recommended for the original Create React App 3 toolchain)
+- Node.js 24.15.0 (the version used to verify this project; see `.nvmrc`)
 - npm
 
 The starter uses Create React App 3. The npm scripts include the OpenSSL
 compatibility option required by its older webpack version on modern Node.js.
+The start/build commands use POSIX environment-variable syntax (macOS/Linux;
+use WSL on Windows). The original dependencies have not been upgraded and npm
+reports known vulnerabilities; this starter should not be treated as a
+production-ready dependency baseline.
 
 ## Run locally
 
 ```bash
+nvm install
 nvm use
 npm ci --legacy-peer-deps
 npm start
@@ -77,6 +109,9 @@ The API uses a self-signed SSL certificate. Before using the application, open
 the certificate.
 
 ## Tests
+
+Tests cover controller behavior, out-of-order responses, request failures,
+and HTTP gateway status handling without real network requests.
 
 ```bash
 npm run test:ci

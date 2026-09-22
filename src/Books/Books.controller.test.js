@@ -2,13 +2,117 @@ import BooksController from "./Books.controller";
 
 function deferred() {
   let resolve;
-  const promise = new Promise(resolvePromise => {
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe("BooksController", () => {
+  let debug;
+  beforeEach(() => {
+    debug = jest.spyOn(console, "debug").mockImplementation(() => {});
+  });
+  afterEach(() => { debug.mockRestore(); });
+
+  it("distinguishes an unknown count from zero and recovers after failure", async () => {
+    const controller = new BooksController({
+      getPrivateBooks: jest.fn()
+        .mockResolvedValueOnce([{ name: "Private" }])
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValueOnce([])
+    });
+    expect(controller.privateBooksCount).toBe("—");
+    await controller.loadPrivateBooksCount();
+    expect(controller.privateBooksCount).toBe(1);
+    await controller.loadPrivateBooksCount();
+    expect(controller.privateBooksCount).toBe("—");
+    await controller.loadPrivateBooksCount();
+    expect(controller.privateBooksCount).toBe(0);
+  });
+
+  it("handles initialization failures without rejecting", async () => {
+    const controller = new BooksController({
+      getBooks: async () => { throw new Error("offline"); },
+      getPrivateBooks: async () => { throw new Error("offline"); }
+    });
+    await expect(controller.initialize()).resolves.toBeUndefined();
+    expect(controller.privateBooksCount).toBe("—");
+    expect(debug).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the previous mode's list on failed switching and allows recovery", async () => {
+    const privateBooks = [{ name: "Private" }];
+    const controller = new BooksController({
+      getBooks: async () => [{ name: "Public" }],
+      getPrivateBooks: jest.fn().mockRejectedValueOnce(new Error("500"))
+        .mockResolvedValueOnce(privateBooks)
+    });
+    await controller.loadBooks();
+    await controller.showPrivateBooks();
+    expect(controller.books).toEqual([]);
+    expect(controller.isPrivateBooksSelected).toBe(true);
+    await controller.showAllBooks();
+    await controller.showPrivateBooks();
+    expect(controller.books).toEqual(privateBooks);
+  });
+
+  it("ignores stale list and counter failures", async () => {
+    const older = deferred();
+    const controller = new BooksController({
+      getPrivateBooks: jest.fn().mockReturnValueOnce(older.promise)
+        .mockResolvedValueOnce([{ name: "Private" }])
+    });
+    const pending = controller.showPrivateBooks();
+    await controller.showPrivateBooks();
+    debug.mockClear();
+    older.reject(new Error("old failure"));
+    await pending;
+    expect(debug).not.toHaveBeenCalled();
+    expect(controller.privateBooksCount).toBe(1);
+  });
+
+  it("handles creation failure and restores the Add action", async () => {
+    const controller = new BooksController({
+      addBook: async () => { throw new Error("offline"); }
+    });
+    await controller.addBook();
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("Could not confirm"), expect.any(Error));
+    expect(controller.isCreating).toBe(false);
+  });
+
+  it("reports an API rejection even with a successful HTTP response", async () => {
+    const controller = new BooksController({ addBook: async () => false });
+    await controller.addBook();
+    expect(debug).toHaveBeenCalledWith("The server did not accept the book.");
+  });
+
+  it("does not report creation failure when only the subsequent reload fails", async () => {
+    const controller = new BooksController({
+      addBook: async () => true,
+      getBooks: async () => { throw new Error("500"); },
+      getPrivateBooks: async () => [{ name: "Created" }]
+    });
+    await controller.addBook();
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith("Could not load books.", expect.any(Error));
+    expect(controller.privateBooksCount).toBe(1);
+  });
+
+  it("prevents overlapping creation requests", async () => {
+    const pendingPost = deferred();
+    const repository = { addBook: jest.fn().mockReturnValue(pendingPost.promise) };
+    const controller = new BooksController(repository);
+    const pending = controller.addBook();
+    await controller.addBook();
+    expect(repository.addBook).toHaveBeenCalledTimes(1);
+    pendingPost.resolve(false);
+    await pending;
+    expect(controller.isCreating).toBe(false);
+  });
+
   it("keeps Private books when an older All response arrives last", async () => {
     const older = deferred();
     const privateBooks = [{ name: "Private" }];

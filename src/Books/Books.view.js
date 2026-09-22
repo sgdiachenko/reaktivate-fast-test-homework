@@ -7,6 +7,7 @@ const BooksView = observer(({ controller }) => (
       <button
         type="button"
         onClick={controller.showAllBooks}
+        aria-pressed={controller.isAllBooksSelected}
         disabled={controller.isAllBooksSelected}
       >
         All books
@@ -14,6 +15,7 @@ const BooksView = observer(({ controller }) => (
       <button
         type="button"
         onClick={controller.showPrivateBooks}
+        aria-pressed={controller.isPrivateBooksSelected}
         disabled={controller.isPrivateBooksSelected}
       >
         Private books
@@ -24,7 +26,7 @@ const BooksView = observer(({ controller }) => (
         {book.author}: {book.name}
       </div>
     ))}
-    <button onClick={controller.addBook}>Add</button>
+    <button onClick={controller.addBook} disabled={controller.isCreating}>Add</button>
   </div>
 ));
 
